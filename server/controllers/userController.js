@@ -82,19 +82,6 @@ module.exports = {
   uploadAvatar: function (req, res) {
     var file = req.files.file;
     var userID = req.params.userID;
-
-    // cloudinary upload method
-    // cloudinary.uploader.upload(file.path, function(result) { 
-    //   var url = result.url;
-    //   User.addProfilePhoto(userID, url, function (err, result) {
-    //     if (err) {
-    //       console.error(err);
-    //       res.status(500).end();
-    //     } else {
-    //       res.status(201).json({ photo: url });
-    //     }
-    //   }) 
-    // });
     fs.readFile(file.path, function (err, data) {
       if (err) {
         throw err;
