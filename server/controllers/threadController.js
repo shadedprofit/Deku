@@ -67,7 +67,8 @@ module.exports = {
     var data = {
       userID: req.params.userID,
       threadID: req.params.threadID,
-      message: req.body.message
+      message: req.body.message,
+      username: req.body.username
     };
 
     Thread.addMessageToThread(data, function (err, result) {
@@ -192,7 +193,7 @@ module.exports = {
   },
 
   unlikeMessage: function (req, res) {
-    Thread.removeUserLikeFromMessage(req.params.userID, req.params.messageID, function (err, result) {
+    Thread.removeUserLikeFromMessage(req.params.userID, req.params.messageID, req.body.threadID, function (err, result) {
       if (err) {
         console.error(err);
         res.status(500).end();

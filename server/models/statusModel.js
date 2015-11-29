@@ -1,23 +1,32 @@
 //Require DB connection!
 var db = require('../db/connection.js');
 var bcrypt = require('bcrypt-nodejs');
+var client = require('../config/redisConnection.js');
 
 
 module.exports = {
 
   getStatuses: function (username, callback) {
-      db.query('select s.id, s.user_id, u.username, s.status, s.created_at, s.vote_tally from statuses s \
-        inner join users u where u.username = ? and u.id = s.user_id', [username], function (err, statuses) {
-        if (err) {
-          callback(err, null);
-        } else {
-          statuses = statuses.sort(function (a,b) {
-            return b.created_at - a.created_at;
-          });
-          callback(null, statuses);
-        }
-      });
-    },
+    client.get('getStatuses' + username, function (err, reply) {
+      if (reply) {
+        console.log('getStatuses in cache')
+        callback(null, JSON.parse(reply));
+      } else {
+        db.query('select s.id, s.user_id, u.username, s.status, s.created_at, s.vote_tally from statuses s \
+          inner join users u where u.username = ? and u.id = s.user_id', [username], function (err, statuses) {
+          if (err) {
+            callback(err, null);
+          } else {
+            statuses = statuses.sort(function (a,b) {
+              return b.created_at - a.created_at;
+            });
+            client.set('getStatuses' + username, JSON.stringify(statuses));
+            callback(null, statuses);
+          }
+        });
+      }
+    })
+  },
 
   getStatusByID: function (statusID, callback) {
     db.query('select s.id, s.user_id, u.username, s.status, s.created_at, s.vote_tally from statuses s \
@@ -37,7 +46,9 @@ module.exports = {
         if (err) {
           callback(err, null);
         } else {
-          callback(null, res);
+          client.del('getStatuses' + data.username, function (err, reply) {
+            callback(null, res);
+          })
         }
     });
   },
@@ -58,12 +69,14 @@ module.exports = {
     });
   },
 
-  deleteStatus: function (statusID, callback) {
+  deleteStatus: function (statusID, username, callback) {
     db.query('delete from statuses where id = ?', [statusID], function (err, res) {
       if (err) {
         callback(err);
       } else {
-        callback(null, res);
+        client.del('getStatuses' + username, function (err, reply) {
+          callback(null, res);
+        })
       }
     });
   },
@@ -88,22 +101,26 @@ module.exports = {
     })
   },
 
-  addUserLikeForStatus: function (userID, statusID, callback) {
+  addUserLikeForStatus: function (userID, statusID, username, callback) {
     db.query('insert into status_votes (user_id, status_id) values (?, ?)', [userID, statusID], function (err, res) {
       if (err) {
         callback(err);
       } else {
-        callback(null, res);
+        client.del('getStatuses' + username, function (err, reply) {
+          callback(null, res);
+        })
       }
     });
   },
 
-  removeUserLikeForStatus: function (userID, statusID, callback) {
+  removeUserLikeForStatus: function (userID, statusID, username, callback) {
     db.query('delete from status_votes where user_id = ? and status_id = ?', [userID, statusID], function (err, res) {
       if (err) {
         callback(err);
       } else {
-        callback(null, res);
+        client.del('getStatuses' + username, function (err, reply) {
+          callback(null, res);
+        })
       }
     })
   },

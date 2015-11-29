@@ -104,7 +104,7 @@
     }
 
     function addAvatarPath(userID, path) {
-      return $http.post('/users/avatarpath/' + userID, { photo: path}) 
+      return $http.post('/users/avatarpath/' + userID, { photo: path, username: $window.localStorage.username }) 
         .then(function successCallback(res) {
           return res.data;
         }, function errorCallback(res) {
@@ -122,7 +122,7 @@
     }
 
     function addPhotoByPath(userID, path) {
-      return $http.post('/users/photos/path/' + userID, { photo: path }) 
+      return $http.post('/users/photos/path/' + userID, { photo: path, username: $window.localStorage.username }) 
         .then(function successCallback(res) {
           return res.data;
         }, function errorCallback(res) {
@@ -133,7 +133,10 @@
     function addPhotoByUpload(userID, file) {
         return Upload.upload({
           url: '/users/photos/upload/' + userID,
-          file: file
+          data: {
+            file: file,
+            username: $window.localStorage.username
+          }
         }).then(function successCallback(res) {
           console.log("Success loading photo. Res is ", res);
           return res.data;
@@ -146,7 +149,7 @@
     }
 
     function deletePhoto(userID, photoID) {
-      return $http.delete('/users/photos/' + userID + '/' + photoID)
+      return $http.delete('/users/photos/' + userID + '/' + photoID, { username: $window.localStorage.username })
         .then(function successCallback(res) {
           return res.data;
         }, function errorCallback(res) {
@@ -178,7 +181,7 @@
     }
 
     function follow (followerID, followeeName) {
-      return $http.post('/follow/' + followerID + '/' + followeeName)
+      return $http.post('/follow/' + followerID + '/' + followeeName, { username: $window.localStorage.username })
         .then(function successCallback(res) {
           return res.data;
         }, function errorCallback(res) {
@@ -187,7 +190,7 @@
     }
 
     function unfollow (followerID, followeeName) {
-      return $http.delete('/follow/' + followerID + '/' + followeeName) 
+      return $http.delete('/follow/' + followerID + '/' + followeeName, { username: $window.localStorage.username }) 
         .then(function successCallback(res) {
           return res.data;
         }, function errorCallback(res) {
@@ -243,6 +246,7 @@
     // update an existing user's profile info
     function updateProfile(data, userID) {
       var url = '/users/' + userID;
+      data.username = $window.localStorage.username;
       return $http.put(url, data)
         .then(function successCallback(res) {
           return res.data;
@@ -270,7 +274,7 @@
     ///////////////////////
 
     function addStatus(status, userID) {
-      return $http.post('/status/' + userID, { status: status })
+      return $http.post('/status/' + userID, { status: status, username: $window.localStorage.username })
         .then(function successCallback(res) {
           return res.data;
         }, function errorCallback(res) {
@@ -278,8 +282,8 @@
         });
     }
 
-    function deleteStatus(userID) {
-      return $http.delete('/status/' + userID)
+    function deleteStatus(statusID) {
+      return $http.delete('/status/' + statusID, { username: $window.localStorage.username })
         .then(function successCallback(res) {
           return res;
         }, function errorCallback(res) {
@@ -321,7 +325,7 @@
     ///////////////////////
 
     function addTag(tag, userID) {
-      return $http.post('/users/tags/' + userID, {tag: tag}) 
+      return $http.post('/users/tags/' + userID, { tag: tag, username: $window.localStorage.username }) 
         .then(function successCallback(res) {
           return res.data;
         }, function errorCallback(res) {
@@ -339,7 +343,7 @@
     }
 
     function removeTag(tagID, userID) {
-      return $http.delete('/users/tags/' + tagID + '/' + userID)
+      return $http.delete('/users/tags/' + tagID + '/' + userID, { username: $window.localStorage.username })
         .then(function successCallback(res) {
           return res.data;
         }, function errorCallback(res) {

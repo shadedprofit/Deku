@@ -8,12 +8,6 @@ var bcrypt = require('bcrypt-nodejs');
 var fs = require('fs');
 var zlib = require('zlib');
 var config = require('../config/auth.js');
-// var cloudinary = require('cloudinary');
-// cloudinary.config({ 
-//   cloud_name: config.cloudinary.cloudName, 
-//   api_key: config.cloudinary.API_Key, 
-//   api_secret: config.cloudinary.API_Secret
-// });
 var AWS = require("aws-sdk");
 AWS.config.update({ accessKeyId: config.awsStorage.accessKey, secretAccessKey: config.awsStorage.secretKey });
 
@@ -190,7 +184,8 @@ module.exports = {
               } else {
                 var data = {
                   userID: userID,
-                  tagID: newtag[0].id
+                  tagID: newtag[0].id,
+                  username: req.body.username
                 };
                 User.addUserTag(data, function (err, result) {
                   if (err) {
@@ -208,7 +203,8 @@ module.exports = {
       } else { // tag does exist in database already
         var data = {
           userID: userID,
-          tagID: tag[0].id
+          tagID: tag[0].id,
+          username: req.body.username
         };
         User.addUserTag(data, function (err, result) {
           if (err) {
@@ -234,7 +230,7 @@ module.exports = {
   },
 
   deleteUserTag: function (req, res) {
-    User.deleteUserTag(req.params.userID, req.params.tagID, function (err, result) {
+    User.deleteUserTag(req.params.userID, req.params.tagID, req.body.username, function (err, result) {
       if (err) {
         console.error(err);
         res.status(500).end();
@@ -256,30 +252,13 @@ module.exports = {
   },
 
   addPhotoURL: function (req, res) {
-    User.addPhoto(req.params.userID, req.body.photo, function (err, result) {
+    User.addPhoto(req.params.userID, req.body.photo, req.body.username, function (err, result) {
       if (err) {
         console.error(err);
         res.status(500).end();
       } else {
         res.status(201).send({ photo: req.body.photo });
       }
-    });
-  },
-
-  addPhotoCloudinary: function (req, res) {
-    var file = req.files.file;
-    var userID = req.params.userID;
-
-    cloudinary.uploader.upload(file.path, function(result) { 
-      var url = result.url;
-      User.addPhoto(userID, url, function (err, result) {
-        if (err) {
-          console.error(err);
-          res.status(500).end();
-        } else {
-          res.status(201).json({ photo: url });
-        }
-      }) 
     });
   },
 
@@ -314,7 +293,7 @@ module.exports = {
             res.status(500).send(err);
           } else {
             // store path to avatar in our database
-            User.addPhoto(userID, data.Location, function (err, result) {
+            User.addPhoto(userID, data.Location, req.body.username, function (err, result) {
               if (err) {
                 console.error(err);
                 res.status(500).send(err);
@@ -330,7 +309,7 @@ module.exports = {
 
   deletePhoto: function (req, res) {
     if (req.params.userID) {
-      User.deletePhoto(req.params.photoID, function (err, result) {
+      User.deletePhoto(req.params.photoID, req.body.username, function (err, result) {
         if (err) {
           console.error(err);
           res.status(500).end();

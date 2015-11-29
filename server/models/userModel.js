@@ -2,7 +2,12 @@
 var db = require('../db/connection.js');
 var bcrypt = require('bcrypt-nodejs');
 var Keen = require("keen-js");
-// var auth = require("../config/auth");
+
+// for caching, we will use a redis server
+// for most queries, we will first look to see if the query result is in the cache
+// if it is, we send that result back to the client
+// if it is not, we will send the query to the database
+var client = require('../config/redisConnection.js');
 if (process.env.PORT) {
   var auth = require('../config/auth.deploy.js');
 } else {
@@ -34,24 +39,38 @@ module.exports = {
   },
 
   getUserByName: function (username, callback) {
-    db.query('select id, username, password, email, read_scoped_key, write_scoped_key, about, tessel, location from users where username = ?', [username], function (err, user) {
-      if (err) {
-        callback(err, null);
+    client.get('getUserByName' + username, function (err, reply) {
+      if (reply) {
+        callback(null, JSON.parse(reply));
       } else {
-        callback(null, user);
+        db.query('select id, username, password, email, read_scoped_key, write_scoped_key, about, tessel, location from users where username = ?', [username], function (err, user) {
+          if (err) {
+            callback(err, null);
+          } else {
+            client.set('getUserByName' + username, JSON.stringify(user));
+            callback(null, user);
+          }
+        })
       }
     })
   },
 
   getUserByEmail: function (email, callback) {
-    db.query('select id, username, email, read_scoped_key, about, tessel, location from users where email = ?',
-      [email], function (err, user) {
-        if (err) {
-          callback(err, null);
-        } else {
-          callback(null, user);
-        }
-      })
+    client.get('getUserByEmail' + email, function (err, reply) {
+      if (reply) {
+        callback(null, JSON.parse(reply));
+      } else {
+        db.query('select id, username, email, read_scoped_key, about, tessel, location from users where email = ?',
+          [email], function (err, user) {
+            if (err) {
+              callback(err, null);
+            } else {
+              client.set('getUserByEmail' + email, JSON.stringify(user));
+              callback(null, user);
+            }
+          })
+      }
+    })
   },
 
   updateUser: function (data, callback) {
@@ -61,6 +80,8 @@ module.exports = {
         if (err) {
           callback(err, null);
         } else {
+          client.del('getUserByName' + data.username);
+          client.del('getUserByName' + data.username);
           callback(null, res);
         }
     });
@@ -69,11 +90,6 @@ module.exports = {
   addUserByLocal: function (data, callback) {
     var readScopedKey = Keen.utils.encryptScopedKey(auth.dashboardConfigure.masterKey, {
       "allowed_operations": ["read"]
-      // "filters": [{
-      //   "property_name": "username",
-      //   "operator": "eq",
-      //   "property_value": data.username
-      // }]
     });
 
     var writeScopedKey = Keen.utils.encryptScopedKey(auth.dashboardConfigure.masterKey, {
@@ -184,26 +200,40 @@ module.exports = {
   },
 
   getUserTags: function (username, callback) {
-    db.query('select t.id, t.tag from tags t inner join usertags u on (t.id = u.tag_id) \
-      inner join users v on (v.id = u.user_id) where v.username = ?', [username], function (err, tags) {
-      if (err) {
-        callback(err, null);
+    client.get('getUserTags' + username, function (err, reply) {
+      if (reply) {
+        callback(null, JSON.parse(reply));
       } else {
-        callback(null, tags);
+        db.query('select t.id, t.tag from tags t inner join usertags u on (t.id = u.tag_id) \
+          inner join users v on (v.id = u.user_id) where v.username = ?', [username], function (err, tags) {
+          if (err) {
+            callback(err, null);
+          } else {
+            client.set('getUserTags' + username, JSON.stringify(tags));
+            callback(null, tags);
+          }
+        });
       }
-    });
+    })
   },
 
   getUsersForTag: function (tagname, callback) {
-    db.query('select u.username, u.profile_photo, u.location from users u \
-      inner join usertags ut inner join tags t where t.tag = ? and ut.tag_id = t.id and ut.user_id = u.id', 
-      [tagname], function (err, res) {
-        if (err) {
-          callback(err);
-        } else {
-          callback(null, res);
-        }
-      });
+    client.get('getUsersForTag' + tagname, function (err, reply) {
+      if (reply) {
+        callback(null, JSON.parse(reply));
+      } else {
+        db.query('select u.username, u.profile_photo, u.location from users u \
+          inner join usertags ut inner join tags t where t.tag = ? and ut.tag_id = t.id and ut.user_id = u.id', 
+          [tagname], function (err, res) {
+            if (err) {
+              callback(err);
+            } else {
+              client.set('getUsersForTag' + tagname, JSON.stringify(res));
+              callback(null, res);
+            }
+          });
+      }
+    })
   },
 
   addUserTag: function (data, callback) {
@@ -212,7 +242,9 @@ module.exports = {
         if (err) {
           callback(err, null);
         } else {
-          callback(null, res);
+          client.del('getUserTags' + data.username, function (err, reply) {
+            callback(null, res);
+          });
         }
     });
   },
@@ -237,42 +269,55 @@ module.exports = {
     });
   },
 
-  deleteUserTag: function (userID, tagID, callback) {
+  deleteUserTag: function (userID, tagID, username, callback) {
     db.query('delete from usertags where user_id = ? and tag_id = ?', [userID, tagID], function (err, res) {
       if (err) {
         callback(err);
       } else {
-        callback(null, res);
+        client.del('getUserTags' + username, function (err, reply) {
+          callback(null, res);
+        })
       }
     });
   },
 
   getPhotos: function (username, callback) {
-    db.query('select photos.photo, photos.id from photos inner join users on (users.id = photos.user_id) where users.username = ?', [username], function (err, res) {
-      if (err) {
-        callback(err);
+    client.get('getPhotos' + username, function (err, reply) {
+      if (reply) {
+        callback(null, JSON.parse(reply));
       } else {
-        callback(null, res);
+        db.query('select photos.photo, photos.id from photos inner join users on (users.id = photos.user_id) where users.username = ?', [username], function (err, res) {
+          if (err) {
+            callback(err);
+          } else {
+            client.set('getPhotos' + username, JSON.stringify(res));
+            callback(null, res);
+          }
+        });
       }
-    });
+    })
   },
 
-  addPhoto: function (userID, photo, callback) {
+  addPhoto: function (userID, photo, username, callback) {
     db.query('insert into photos (user_id, photo) values (?,?) on duplicate key update user_id = user_id', [userID, photo], function (err, res) {
       if (err) {
         callback(err);
       } else {
-        callback(null, res);
+        client.del('getPhotos' + username, function (err, reply) {
+          callback(null, res);
+        });
       }
     });
   },
 
-  deletePhoto: function (photoID, callback) {
+  deletePhoto: function (photoID, username, callback) {
     db.query('delete from photos where photos.id = ?', [photoID], function (err, res) {
       if (err) {
         callback(err);
       } else {
-        callback(null, res);
+        client.del('getPhotos' + username, function (err, reply) {
+          callback(null, res);
+        })
       }
     });
   },

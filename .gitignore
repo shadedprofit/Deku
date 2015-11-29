@@ -21,3 +21,6 @@ client/keys/dashboardConfigure.js
 
 #Environmental variables
 .env
+
+# Redis server
+dump.rdb

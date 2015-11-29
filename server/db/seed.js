@@ -112,7 +112,7 @@ function addPhotos (n) {
     return associateUserTags(60);
   }
   var randomUser = allUsers[Math.floor(Math.random() * (allUsers.length - 1))];
-  User.addPhoto(randomUser.id, faker.image.nature(), function (err, result) {
+  User.addPhoto(randomUser.id, faker.image.nature(), randomUser.username, function (err, result) {
     if (err) {
       console.error(err);
     } else {
@@ -130,7 +130,8 @@ function associateUserTags (n) {
   var randomTag = allTags[Math.floor(Math.random() * (allTags.length - 1))];
   var data = {
     userID: randomUser.id,
-    tagID: randomTag.id
+    tagID: randomTag.id,
+    username: randomUser.username
   }
   User.addUserTag(data, function (err, result) {
     if (err) {
@@ -151,7 +152,8 @@ function makeStatuses (n) {
   var newStatus = faker.lorem.sentence();
   var data = {
     userID: randomUser.id,
-    status: newStatus
+    status: newStatus,
+    username: randomUser.username
   }
   Status.addStatus(data, function (err, result) {
     if (err) {

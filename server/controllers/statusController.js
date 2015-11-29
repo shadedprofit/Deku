@@ -28,7 +28,8 @@ module.exports = {
   updateStatus: function (req, res) {
     var data = {
       userID: req.params.userID,
-      status: req.body.status
+      status: req.body.status,
+      username: req.body.username
     };
     Status.addStatus(data, function (err, result) {
       if (err) {
@@ -71,7 +72,7 @@ module.exports = {
 
   deleteStatus: function (req, res) {
     var statusID = req.params.statusID;
-    Status.deleteStatus(statusID, function (err, result) {
+    Status.deleteStatus(statusID, req.body.username, function (err, result) {
       if (err) {
         console.error(err);
         res.status(500).send();
@@ -82,7 +83,7 @@ module.exports = {
   },
 
   likeStatus: function (req, res) {
-    Status.addUserLikeForStatus(req.params.userID, req.params.statusID, function (err, result) {
+    Status.addUserLikeForStatus(req.params.userID, req.params.statusID, req.body.username, function (err, result) {
       if (err) {
         console.error(err);
         res.status(500).end();
@@ -101,7 +102,7 @@ module.exports = {
   },
 
   unlikeStatus: function (req, res) {
-    Status.removeUserLikeForStatus(req.params.userID, req.params.statusID, function (err, result) {
+    Status.removeUserLikeForStatus(req.params.userID, req.params.statusID, req.body.username, function (err, result) {
       if (err) {
         console.error(err);
         res.status(500).end();
